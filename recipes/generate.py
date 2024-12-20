@@ -6,14 +6,17 @@
 import itertools
 import sys
 import time
-from typing import Any
+from functools import partial
+from typing import Any, Dict, List
 
 import torch
 from omegaconf import DictConfig
 from torch import nn
+from torch.utils.data import DataLoader, DistributedSampler
 
 from torchtune import config, generation, training, utils
-from torchtune.data import Message, Role
+from torchtune.config._utils import _get_component_from_path
+from torchtune.data import CROSS_ENTROPY_IGNORE_IDX, Message, Role
 from torchtune.training import FullModelTorchTuneCheckpointer
 
 logger = utils.get_logger("DEBUG")
@@ -74,6 +77,35 @@ class InferenceRecipe:
         )
         self._tokenizer = config.instantiate(cfg.tokenizer)
 
+        # def _setup_data()
+        batch_size = cfg.get("batch_size", 2)
+        collate_name = cfg.get("collate_fn", "torchtune.data.padded_collate_sft")
+        collate_fn = _get_component_from_path(collate_name)
+
+        ds = config.instantiate(cfg.dataset, self._tokenizer)
+        packed = cfg.dataset.get("packed", False)
+        sampler = DistributedSampler(
+            ds,
+            num_replicas=1,
+            rank=0,
+            shuffle=False,
+            seed=0,
+        )
+        self._dataloader = DataLoader(
+            dataset=ds,
+            batch_size=batch_size,
+            sampler=sampler,
+            # dropping last avoids shape issues with compile + flex attention
+            drop_last=True,
+            collate_fn=(
+                partial(
+                    collate_fn,
+                    padding_idx=self._tokenizer.pad_id,
+                    ignore_idx=CROSS_ENTROPY_IGNORE_IDX,
+                )
+            ),
+        )
+
     def _setup_model(
         self,
         model_cfg: DictConfig,
@@ -132,7 +164,7 @@ class InferenceRecipe:
         if cfg.enable_kv_cache:
             with self._device:
                 self._model.setup_caches(
-                    batch_size=1,
+                    batch_size=1,  # FIXME batch size!
                     dtype=self._dtype,
                     decoder_max_seq_len=prompt.numel() + cfg.max_new_tokens,
                 )
@@ -194,6 +226,23 @@ class InferenceRecipe:
             logger.info(
                 f"Memory used: {torch_device.max_memory_allocated() / 1e9:.02f} GB"
             )
+
+        if self._dataloader is not None:
+            for idx, batch in enumerate(self._dataloader):
+                utils.batch_to_device(batch, self._device)
+                generated_tokens, _ = generation.generate(
+                    model=self._model,
+                    prompt=batch["tokens"],
+                    max_generated_tokens=cfg.max_new_tokens,
+                    pad_id=self._tokenizer.pad_id,
+                    temperature=cfg.temperature,
+                    top_k=cfg.top_k,
+                    stop_tokens=self._tokenizer.stop_tokens,
+                    custom_generate_next_token=custom_generate_next_token,
+                )
+
+                logger.info(self._tokenizer.decode(generated_tokens[0]))
+                break
 
 
 @config.parse

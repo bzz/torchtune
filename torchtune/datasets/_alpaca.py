@@ -70,7 +70,7 @@ def alpaca_dataset(
 
     Example:
         >>> alpaca_ds = alpaca_dataset(tokenizer=tokenizer)
-        >>> for batch in Dataloader(alpaca_ds, batch_size=8):
+        >>> for batch in DataLoader(alpaca_ds, batch_size=8):
         >>>     print(f"Batch size: {len(batch)}")
         >>> Batch size: 8
     """
