@@ -603,6 +603,12 @@ _ALL_RECIPES = [
         ],
         supports_distributed=True,
     ),
+    Recipe(
+        name="dev/debug_input",
+        file_path="dev/debug_input.py",
+        configs=[],
+        supports_distributed=False,
+    ),
 ]
 
 
