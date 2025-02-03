@@ -902,16 +902,17 @@ class LoRAFinetuneRecipeDistributed(FTRecipeInterface):
                     # will include multiple forward / backward passes if gradient accumulation > 1
                     self._profiler.step()
 
-                if (self._run_val_every_n_steps is not None and
-                    self.global_step % self._run_val_every_n_steps == 0):
-                    pbar.refresh()
-                    val_loss = self.validate()
-                    if self._is_rank_zero:
-                        log.info(f"Validation loss: {val_loss:.4f}")
-                        self._metric_logger.log_dict(
-                            {"val_loss": val_loss},
-                            step=self.global_step,
-                        )
+                    # Run validation after gradient update
+                    if (self._run_val_every_n_steps is not None and
+                        self.global_step % self._run_val_every_n_steps == 0):
+                        pbar.refresh()
+                        val_loss = self.validate()
+                        if self._is_rank_zero:
+                            log.info(f"Validation loss: {val_loss:.4f}")
+                            self._metric_logger.log_dict(
+                                {"val_loss": val_loss},
+                                step=self.global_step,
+                            )
 
             self.epochs_run += 1
             self.save_checkpoint(epoch=curr_epoch)
