@@ -19,17 +19,18 @@ def instruct_md_template_dataset(
     source: str,
     column_map: Optional[Dict[str, str]] = None,
     train_on_input: bool = True,
+    prompt_template: Optional[str] = None,
     packed: bool = False,
     filter_fn: Optional[Callable] = None,
     split: str = "train",
     **load_dataset_kwargs: Dict[str, Any],
 ) -> Union[SFTDataset, PackedDataset]:
-
-    template = (
-        "Below is an instruction that describes a task, paired with an input that provides further context. "
-        "Write a response that appropriately completes the request.\n\n"
-        "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:\n"
-    )
+    if prompt_template is None:
+        prompt_template = ( # alpaca style
+            "Below is an instruction that describes a task, paired with an input that provides further context. "
+            "Write a response that appropriately completes the request.\n\n"
+            "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:\n"
+        )
 
     class MarkdownToMessages(Transform):
         def __init__(
@@ -65,7 +66,7 @@ def instruct_md_template_dataset(
             ]
             return {"messages": messages}
 
-    message_transform = MarkdownToMessages(template, train_on_input, column_map)
+    message_transform = MarkdownToMessages(prompt_template, train_on_input, column_map)
     ds = SFTDataset(
         source=source,
         message_transform=message_transform,
