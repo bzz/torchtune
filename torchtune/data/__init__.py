@@ -26,6 +26,7 @@ from torchtune.data._messages import (
 )
 from torchtune.data._prompt_templates import (
     ChatMLTemplate,
+    ClosingFencedCodeBlockTemplate,
     GrammarErrorCorrectionTemplate,
     PromptTemplate,
     PromptTemplateInterface,
@@ -36,6 +37,7 @@ from torchtune.data._utils import format_content_with_images, load_image, trunca
 
 __all__ = [
     "CROSS_ENTROPY_IGNORE_IDX",
+    "ClosingFencedCodeBlockTemplate",
     "GrammarErrorCorrectionTemplate",
     "SummarizeTemplate",
     "OpenAIToMessages",
