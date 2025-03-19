@@ -210,6 +210,19 @@ class ChatMLTemplate(PromptTemplateInterface):
         return formatted_dialogue
 
 
+ClosingFencedCodeBlockTemplate = partial(
+    PromptTemplate,
+    template={
+        "assistant": ("", "\n```"),
+    },
+)
+ClosingFencedCodeBlockTemplate.__doc__ = """
+For coding tasks to close a fenced code block after the assistant's response::
+
+    {assistant_message}
+    ```
+"""
+
 GrammarErrorCorrectionTemplate = partial(
     PromptTemplate,
     template={
